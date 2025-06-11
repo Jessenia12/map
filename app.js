@@ -9,109 +9,76 @@ const fs = require('fs');
 
 var app = express();
 
-var server = require('http').createServer(app)
+// ✅ Crear el único servidor HTTP
+var server = require('http').createServer(app);
+
+// ✅ Montar socket.io sobre el mismo servidor
 var io = require('socket.io')(server, {
   cors: {
-    // ✅ CAMBIO 1: Permitir cualquier origen
-    origin: "*", // Permite conexiones desde cualquier red
+    origin: "*",
     methods: ["GET", "POST"],
     credentials: true
   }
-})
+});
 
-var serverPort = 3001;
+// ✅ Correcto: solo usas el puerto asignado por Render
+var serverPort = process.env.PORT;
+
+if (!serverPort) {
+  console.error("❌ Error: La variable de entorno PORT no está definida. Render la asigna automáticamente.");
+  process.exit(1);
+}
 
 var user_socket_connect_list = [];
 
-// view engine setup
+// ✅ Configuración de Express (todo correcto)
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 
 app.use(logger('dev'));
-app.use(express.json({limit: '100mb'}));
+app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ✅ CAMBIO 2: CORS para cualquier origen
+// ✅ Configuración de CORS correcta
 const corsOptions = {
-  origin: "*", // Permite conexiones desde cualquier red
+  origin: "*",
   credentials: true,
   optionsSuccessStatus: 200
-}
-
+};
 app.use(cors(corsOptions));
 
-// ✅ CAMBIO 3: Headers adicionales para acceso externo
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With');
-  next();
+// ✅ Ruta raíz simple
+app.get('/', (req, res) => {
+  res.send('Servidor de tracking familiar activo 🚀');
 });
 
-fs.readdirSync('./controllers').forEach( (file) => {
-  if(file.substr(-3) == ".js") {
-    route = require('./controllers/' + file);
+// ✅ Correctamente cargando controladores
+fs.readdirSync('./controllers').forEach((file) => {
+  if (file.substr(-3) == ".js") {
+    const route = require('./controllers/' + file);
     route.controller(app, io, user_socket_connect_list);
   }
-})
+});
 
-// catch 404 and forward to error handler
+// ✅ Manejo de error 404
 app.use(function(req, res, next) {
   next(createError(404));
 });
 
-// error handler
+// ✅ Middleware de error general
 app.use(function(err, req, res, next) {
-  // set locals, only providing error in development
   res.locals.message = err.message;
   res.locals.error = req.app.get('env') === 'development' ? err : {};
 
-  // render the error page
   res.status(err.status || 500);
   res.render('error');
 });
 
-module.exports = app;
-
-// ✅ CAMBIO 4: Escuchar en todas las interfaces
+// ✅ Finalmente levantar el servidor en el puerto asignado por Render
 server.listen(serverPort, '0.0.0.0', () => {
-  console.log(`🚀 Server Start: ${serverPort}`);
-  console.log(`🌐 Accesible desde cualquier red en puerto ${serverPort}`);
-  
-  // Mostrar IPs disponibles
-  const networkInterfaces = require('os').networkInterfaces();
-  const addresses = [];
-  
-  for (const interfaceName in networkInterfaces) {
-    const networkInterface = networkInterfaces[interfaceName];
-    for (const addressInfo of networkInterface) {
-      if (addressInfo.family === 'IPv4' && !addressInfo.internal) {
-        addresses.push(addressInfo.address);
-      }
-    }
-  }
-  
-  console.log('📍 IPs disponibles:');
-  addresses.forEach(ip => {
-    console.log(`   http://${ip}:${serverPort}`);
-  });
+  console.log(`🚀 Server iniciado en el puerto ${serverPort}`);
 });
 
-/*
-  🔔 Recuerda: No necesitas cambiar nada en este servidor para usar la URL pública.
-
-  Cuando uses LocalTunnel o ngrok, la URL pública (por ejemplo, 
-  https://fair-mugs-relate.loca.lt) la configuras SOLO en tu app Flutter o cliente,
-  en las conexiones HTTP o Socket.IO.
-
-  Ejemplo en Flutter para HTTP o socket.io:
-
-  final String baseUrl = 'https://fair-mugs-relate.loca.lt';
-
-  final socket = IO.io(baseUrl, <String, dynamic>{
-    'transports': ['websocket'],
-    'autoConnect': false,
-  });
-*/
+module.exports = app;
