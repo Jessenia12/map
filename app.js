@@ -21,13 +21,8 @@ var io = require('socket.io')(server, {
   }
 });
 
-// ✅ Correcto: solo usas el puerto asignado por Render
-var serverPort = process.env.PORT;
-
-if (!serverPort) {
-  console.error("❌ Error: La variable de entorno PORT no está definida. Render la asigna automáticamente.");
-  process.exit(1);
-}
+// ✅ LÍNEA CORREGIDA: Puerto con fallback
+var serverPort = process.env.PORT || 3000;
 
 var user_socket_connect_list = [];
 
@@ -71,7 +66,7 @@ app.use(function(req, res, next) {
 app.use(function(err, req, res, next) {
   res.locals.message = err.message;
   res.locals.error = req.app.get('env') === 'development' ? err : {};
-
+  
   res.status(err.status || 500);
   res.render('error');
 });
